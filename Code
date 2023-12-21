@@ -1,0 +1,81 @@
+#include "voice_main.h"
+#include "hal_data.h"
+#include "DSpotter/include/Convert2TransferBuffer.h"
+#include "DSpotter/include/DSpotterSDKApi_Const.h"
+#include "DSpotter/include/DSpotterSDKApi.h"
+#include "DSpotter/include/DSpotterSDTrainApi.h"
+#include "DSpotter/include/R48Kto16K.h"
+#include "DSpotter/include/RingBuffer.h"
+#include "DSpotter/include/AGCApi.h"
+#include "DSpotter/include/CybVADApi.h"
+#include "DSpotter/DbgTrace.h"
+#include "DSpotter/UartMgr.h"
+#include "DSpotter/FlashMgr.h"
+#include "DSpotter/CybModelInfor.h"
+#include "Model/SpeexData1.h"
+#include "Speex/PlaySpeex.h"
+
+uint8_t data_rx[3];
+char *id = &data_rx[0];
+char *idl = &data_rx[1];
+char *idh = &data_rx[2];
+char id0, id1, id2;
+int data_wx, data_vl = 100, volume = 100;
+uint8_t amluong[] = "Am luong la: ";
+
+/* Callback function */
+void Call_back(uart_callback_args_t *p_args)
+{
+	if (p_args->event == UART_EVENT_RX_COMPLETE)
+	{
+		 R_SCI_UART_Write(&g_uart_command_ctrl, data_rx, 3 );
+		id0 = *id; id1 = *idl; id2 = *idh;
+		 {
+		        if (id0 == 9)
+		 {
+			if ((id1 == 53 )&&(id2 == 49))
+			 data_wx = 51;
+		              else if ((id1 == 53)&&(id2 == 50))
+			 data_wx = 52;
+		 else if ((id1 == 53)&&(id2 == 51))
+			 data_wx = 53;
+		 }
+		if (id0 == 10)
+		{
+			if(id1 == 43)
+			{ data_vl = data_vl + id2;
+			    if (data_vl >= 100) volume = 100;
+			    else volume = data_vl;
+			}
+			if(id1 == 45)
+			{
+				data_vl = data_vl - id2;
+			if (data_vl <= 0) volume = 0;
+			else volume = data_vl;
+			}
+		}
+		}
+			 R_SCI_UART_Read(&g_uart_command_ctrl, data_rx, 3);
+
+	}
+}
+
+void voice_main()
+{
+	R_SCI_UART_Open(&g_uart_command_ctrl, &g_uart_command_cfg);
+	R_SCI_UART_Read(&g_uart_command_ctrl, data_rx, 3);
+	const BYTE *pbySpeexDataBegin = (const BYTE *)&g_uSpeexData1Begin;
+	R_DAC_Open(&g_dac_playback_ctrl, &g_dac_playback_cfg);
+	R_DAC_Start(&g_dac_playback_ctrl);
+	R_DAC_Write(&g_dac_playback_ctrl, 0x0800);   /*1,15V*/
+	while (1)
+    {
+		if (PlaySpeexIsDataValid(pbySpeexDataBegin, data_wx ))
+		{
+			PlaySpeexStart();
+			PlaySpeexMapID(pbySpeexDataBegin, data_wx , volume);
+			PlaySpeexStop();
+		}
+		R_BSP_SoftwareDelay(2000, BSP_DELAY_UNITS_MILLISECONDS);
+    }
+}
