@@ -79,3 +79,6 @@ void voice_main()
 		R_BSP_SoftwareDelay(2000, BSP_DELAY_UNITS_MILLISECONDS);
     }
 }
+
+/* Chức năng của đoạn code: Đoạn code được viết dành cho Dòng Vi điều khiển Renesas R6AM1- 64pin trên phần mềm E2 Studio.
+    Điều khiển Loa phát đoạn âm thanh và âm lượng theo mong muốn. Việc điều khiển được thực hiện qua giao thức UART */
